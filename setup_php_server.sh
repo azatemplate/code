@@ -2,15 +2,19 @@
 
 set -e
 
-read -p "Nhập domain bạn muốn cài đặt (ví dụ: api.bloghong.com): " domain
+echo "=============================="
+echo "🚀 Script Cài đặt Apache + PHP + SSL Let's Encrypt"
+echo "=============================="
+
+read -p "🌐 Nhập domain bạn muốn cài đặt (ví dụ: api.bloghong.com): " domain
 if [[ -z "$domain" ]]; then
-  echo "⚠️ Domain không được để trống. Vui lòng chạy lại script và nhập domain."
+  echo "❌ Domain không được để trống. Vui lòng chạy lại script."
   exit 1
 fi
 
-read -p "Nhập email của bạn để đăng ký SSL (Let's Encrypt sẽ gửi thông báo về email này): " user_email
+read -p "📧 Nhập email của bạn để đăng ký SSL (Let's Encrypt sẽ gửi cảnh báo về email này): " user_email
 if [[ -z "$user_email" ]]; then
-  echo "⚠️ Email không được để trống. Vui lòng chạy lại script và nhập email."
+  echo "❌ Email không được để trống. Vui lòng chạy lại script."
   exit 1
 fi
 
@@ -25,20 +29,10 @@ echo "Hello from videos.php";
 ?>
 EOF
 
-echo "✅ Cấu hình Apache chạy port 8080..."
-sed -i 's/80/8080/g' /etc/apache2/ports.conf
-sed -i 's/<VirtualHost \*:80>/<VirtualHost \*:8080>/g' /etc/apache2/sites-enabled/000-default.conf
-
-echo "✅ Restart Apache..."
-systemctl restart apache2
-
-echo "✅ Mở port 8080 trên tường lửa (nếu có)..."
-ufw allow 8080 || true
-
-echo "✅ Cài đặt Certbot và cấp SSL cho domain $domain..."
+echo "✅ Cài đặt Certbot..."
 apt install certbot python3-certbot-apache -y
 
-echo "⚠️ Cấu hình VirtualHost để Certbot nhận diện domain..."
+echo "⚙️ Cấu hình VirtualHost cho domain $domain..."
 cat <<EOL > /etc/apache2/sites-available/$domain.conf
 <VirtualHost *:80>
     ServerName $domain
@@ -52,4 +46,21 @@ systemctl reload apache2
 echo "🔐 Gọi Certbot để tạo SSL..."
 certbot --apache -d $domain --non-interactive --agree-tos -m $user_email
 
-echo "🎉 Hoàn tất! Truy cập: https://$domain:8080/videos.php"
+echo "🔁 Cấu hình Apache chuyển sang port 8080..."
+sed -i 's/80/8080/g' /etc/apache2/ports.conf
+sed -i 's/<VirtualHost \*:80>/<VirtualHost \*:8080>/g' /etc/apache2/sites-enabled/000-default.conf
+sed -i 's/<VirtualHost \*:80>/<VirtualHost \*:8080>/g' /etc/apache2/sites-available/$domain.conf
+
+echo "🔄 Restart Apache..."
+if systemctl restart apache2; then
+  echo "✅ Apache đã được khởi động lại thành công."
+else
+  echo "❌ Apache lỗi khi khởi động lại. Vui lòng kiểm tra cấu hình."
+  exit 1
+fi
+
+echo "✅ Mở port 8080 trên tường lửa (nếu có)..."
+ufw allow 8080 || true
+
+echo "🎉 Cài đặt hoàn tất!"
+echo "🔗 Truy cập thử: https://$domain:8080/videos.php"
